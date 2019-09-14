@@ -321,6 +321,24 @@ func (v *Index) WriteTreeTo(repo *Repository) (*Oid, error) {
 	return oid, nil
 }
 
+// Read updates the contents of an existing index object in memory by reading from the hard disk.
+func (v *Index) Read(force bool) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var forceInt C.int
+	if force {
+		forceInt = 1
+	}
+	ret := C.git_index_read(v.ptr, forceInt)
+	runtime.KeepAlive(v)
+	if ret < 0 {
+		return MakeGitError(ret)
+	}
+
+	return nil
+}
+
 // ReadTree replaces the contents of the index with those of the given
 // tree
 func (v *Index) ReadTree(tree *Tree) error {
