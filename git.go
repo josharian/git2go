@@ -247,22 +247,17 @@ func (e GitError) Error() string {
 }
 
 func IsErrorClass(err error, c ErrorClass) bool {
-
-	if err == nil {
-		return false
-	}
-	if gitError, ok := err.(*GitError); ok {
-		return gitError.Class == c
+	var giterr *GitError
+	if errors.As(err, &giterr) {
+		return giterr.Class == c
 	}
 	return false
 }
 
 func IsErrorCode(err error, c ErrorCode) bool {
-	if err == nil {
-		return false
-	}
-	if gitError, ok := err.(*GitError); ok {
-		return gitError.Code == c
+	var giterr *GitError
+	if errors.As(err, &giterr) {
+		return giterr.Code == c
 	}
 	return false
 }
