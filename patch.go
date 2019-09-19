@@ -59,8 +59,6 @@ func (patch *Patch) String() (string, error) {
 func toPointer(data []byte) (ptr unsafe.Pointer) {
 	if len(data) > 0 {
 		ptr = unsafe.Pointer(&data[0])
-	} else {
-		ptr = unsafe.Pointer(nil)
 	}
 	return
 }
