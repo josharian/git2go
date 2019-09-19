@@ -150,6 +150,23 @@ func (diff *Diff) GetDelta(index int) (DiffDelta, error) {
 	return ret, nil
 }
 
+// Delta gathers all diff's deltas into a slice.
+func (diff *Diff) Deltas() ([]DiffDelta, error) {
+	nd, err := diff.NumDeltas()
+	if err != nil {
+		return nil, err
+	}
+	deltas := make([]DiffDelta, nd)
+	for i := 0; i < nd; i++ {
+		delta, err := diff.GetDelta(i)
+		if err != nil {
+			return nil, err
+		}
+		deltas[i] = delta
+	}
+	return deltas, nil
+}
+
 func newDiffFromC(ptr *C.git_diff, repo *Repository) *Diff {
 	if ptr == nil {
 		return nil
@@ -403,6 +420,22 @@ func (diff *Diff) Patch(deltaIndex int) (*Patch, error) {
 	}
 
 	return newPatchFromC(patchPtr), nil
+}
+
+func (diff *Diff) Patches() ([]*Patch, error) {
+	nd, err := diff.NumDeltas()
+	if err != nil {
+		return nil, err
+	}
+	patches := make([]*Patch, nd)
+	for i := 0; i < nd; i++ {
+		patch, err := diff.Patch(i)
+		if err != nil {
+			return nil, err
+		}
+		patches[i] = patch
+	}
+	return patches, nil
 }
 
 type DiffOptionsFlag int
