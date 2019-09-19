@@ -56,6 +56,26 @@ func (patch *Patch) String() (string, error) {
 	return C.GoString(buf.ptr), nil
 }
 
+// LineStats reports the number of context lines, added lines, and deleted lines in the patch.
+// It is useful for generating diff --numstat type of output.
+// See https://libgit2.org/libgit2/#HEAD/group/patch/git_patch_line_stats.
+func (patch *Patch) LineStats() (ctxt, additions, deletions int, err error) {
+	if patch.ptr == nil {
+		return 0, 0, 0, ErrInvalid
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var c, a, d C.size_t
+	ret := C.git_patch_line_stats(&c, &a, &d, patch.ptr)
+	runtime.KeepAlive(patch)
+	if ret < 0 {
+		return 0, 0, 0, MakeGitError(ret)
+	}
+	return int(c), int(a), int(d), nil
+}
+
 func toPointer(data []byte) (ptr unsafe.Pointer) {
 	if len(data) > 0 {
 		ptr = unsafe.Pointer(&data[0])
