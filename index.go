@@ -458,10 +458,13 @@ func (v *Index) HasConflicts() bool {
 	return ret
 }
 
-// FIXME: this might return an error
-func (v *Index) CleanupConflicts() {
-	C.git_index_conflict_cleanup(v.ptr)
+func (v *Index) CleanupConflicts() error {
+	ret := C.git_index_conflict_cleanup(v.ptr)
 	runtime.KeepAlive(v)
+	if ret < 0 {
+		return MakeGitError(ret)
+	}
+	return nil
 }
 
 func (v *Index) AddConflict(ancestor *IndexEntry, our *IndexEntry, their *IndexEntry) error {
