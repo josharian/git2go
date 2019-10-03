@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -150,6 +151,8 @@ func newOidFromC(coid *C.git_oid) *Oid {
 	return oid
 }
 
+// NewOidFromBytes creates an Oid from a raw hash.
+// b must have length 20.
 func NewOidFromBytes(b []byte) *Oid {
 	oid := new(Oid)
 	copy(oid[0:20], b[0:20])
@@ -160,9 +163,11 @@ func (oid *Oid) toC() *C.git_oid {
 	return (*C.git_oid)(unsafe.Pointer(oid))
 }
 
+// NewOid parses a hex string into an Oid.
+// s must have length 40.
 func NewOid(s string) (*Oid, error) {
 	if len(s) > C.GIT_OID_HEXSZ {
-		return nil, errors.New("string is too long for oid")
+		return nil, fmt.Errorf("string %q is too long for oid", s)
 	}
 
 	o := new(Oid)
@@ -177,6 +182,24 @@ func NewOid(s string) (*Oid, error) {
 	}
 
 	copy(o[:], slice[:20])
+	return o, nil
+}
+
+// NewOidFromHexBytes parses a hex byte slice into an Oid.
+// b must have length 40.
+func NewOidFromHexBytes(b []byte) (*Oid, error) {
+	if len(b) > C.GIT_OID_HEXSZ {
+		return nil, fmt.Errorf("byte slice %q is too long for oid", b)
+	}
+
+	o := new(Oid)
+	n, err := hex.Decode(o[:], b)
+	if err != nil {
+		return nil, err
+	}
+	if n != 20 {
+		return nil, &GitError{"Invalid Oid", ErrClassNone, ErrGeneric}
+	}
 	return o, nil
 }
 
