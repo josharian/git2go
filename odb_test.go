@@ -26,7 +26,7 @@ func TestOdbReadHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadHeader: %v", err)
 	}
-	
+
 	if sz != uint64(len(data)) {
 		t.Errorf("ReadHeader got size %d, want %d", sz, len(data))
 	}
