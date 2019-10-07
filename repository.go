@@ -485,7 +485,9 @@ const (
 	RepositoryStateNone                 RepositoryState = C.GIT_REPOSITORY_STATE_NONE
 	RepositoryStateMerge                RepositoryState = C.GIT_REPOSITORY_STATE_MERGE
 	RepositoryStateRevert               RepositoryState = C.GIT_REPOSITORY_STATE_REVERT
+	RepositoryStateRevertSequence       RepositoryState = C.GIT_REPOSITORY_STATE_REVERT_SEQUENCE
 	RepositoryStateCherrypick           RepositoryState = C.GIT_REPOSITORY_STATE_CHERRYPICK
+	RepositoryStateCherrypickSequence   RepositoryState = C.GIT_REPOSITORY_STATE_CHERRYPICK_SEQUENCE
 	RepositoryStateBisect               RepositoryState = C.GIT_REPOSITORY_STATE_BISECT
 	RepositoryStateRebase               RepositoryState = C.GIT_REPOSITORY_STATE_REBASE
 	RepositoryStateRebaseInteractive    RepositoryState = C.GIT_REPOSITORY_STATE_REBASE_INTERACTIVE
