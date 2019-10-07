@@ -157,7 +157,7 @@ const (
 // Certificate represents the two possible certificates which libgit2
 // knows it might find. If Kind is CertficateX509 then the X509 field
 // will be filled. If Kind is CertificateHostkey then the Hostkey
-// field will be fille.d
+// field will be filled.
 type Certificate struct {
 	Kind    CertificateKind
 	X509    *x509.Certificate
