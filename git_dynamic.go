@@ -1,4 +1,4 @@
-// +build !static
+// +build dynamic
 
 package git
 
