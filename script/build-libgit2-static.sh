@@ -2,7 +2,7 @@
 
 set -ex
 
-VENDORED_PATH=vendor/libgit2
+VENDORED_PATH=libgit2
 
 cd $VENDORED_PATH &&
 mkdir -p install/lib &&
