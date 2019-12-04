@@ -26,9 +26,20 @@ func (o *Cred) HasUsername() bool {
 	return false
 }
 
-func (o *Cred) Type() CredType {
-	return (CredType)(o.ptr.credtype)
-}
+// TODO: restore. This was broken by v28+1,
+// I don't see clearly how to fix it,
+// and we don't use it.
+//
+// Relevant changelog entry:
+// * The "private" implementation details of the `git_cred` structure have been
+//   moved to a dedicated `git2/sys/cred.h` header, to clarify that the underlying
+//   structures are only provided for custom transport implementers.
+//   The breaking change is that the `username` member of the underlying struct
+//   is now hidden, and a new `git_cred_get_username` function has been provided.
+//
+// func (o *Cred) Type() CredType {
+// 	return (CredType)(o.ptr.credtype)
+// }
 
 func credFromC(ptr *C.git_cred) *Cred {
 	return &Cred{ptr}
