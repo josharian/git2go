@@ -40,7 +40,6 @@ typedef enum {
 	GIT_PKT_HAVE,
 	GIT_PKT_ACK,
 	GIT_PKT_NAK,
-	GIT_PKT_PACK__UNUSED,
 	GIT_PKT_COMMENT,
 	GIT_PKT_ERR,
 	GIT_PKT_DATA,
@@ -50,7 +49,7 @@ typedef enum {
 	GIT_PKT_UNPACK,
 } git_pkt_type;
 
-/* Used for multi_ack and mutli_ack_detailed */
+/* Used for multi_ack and multi_ack_detailed */
 enum git_ack_status {
 	GIT_ACK_NONE,
 	GIT_ACK_CONTINUE,

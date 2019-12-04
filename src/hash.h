@@ -14,7 +14,6 @@
 typedef struct git_hash_prov git_hash_prov;
 typedef struct git_hash_ctx git_hash_ctx;
 
-int git_hash_global_init(void);
 int git_hash_ctx_init(git_hash_ctx *ctx);
 void git_hash_ctx_cleanup(git_hash_ctx *ctx);
 
@@ -26,9 +25,13 @@ void git_hash_ctx_cleanup(git_hash_ctx *ctx);
 # include "hash/hash_openssl.h"
 #elif defined(GIT_SHA1_WIN32)
 # include "hash/hash_win32.h"
+#elif defined(GIT_SHA1_MBEDTLS)
+# include "hash/hash_mbedtls.h"
 #else
 # include "hash/hash_generic.h"
 #endif
+
+int git_hash_global_init(void);
 
 typedef struct {
 	void *data;

@@ -19,10 +19,6 @@
 #include "git2/transport.h"
 #include "git2/sys/openssl.h"
 
-#ifdef GIT_CURL
-# include "streams/curl.h"
-#endif
-
 #ifndef GIT_WIN32
 # include <sys/types.h>
 # include <sys/socket.h>
@@ -38,8 +34,115 @@ SSL_CTX *git__ssl_ctx;
 
 #define GIT_SSL_DEFAULT_CIPHERS "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-DSS-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-DSS-AES128-SHA256:DHE-DSS-AES256-SHA256:DHE-DSS-AES128-SHA:DHE-DSS-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA"
 
-#if defined(GIT_THREADS) && OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+     (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
+# define OPENSSL_LEGACY_API
+#endif
 
+/*
+ * OpenSSL 1.1 made BIO opaque so we have to use functions to interact with it
+ * which do not exist in previous versions. We define these inline functions so
+ * we can program against the interface instead of littering the implementation
+ * with ifdefs. We do the same for OPENSSL_init_ssl.
+ */
+#if defined(OPENSSL_LEGACY_API)
+static int OPENSSL_init_ssl(int opts, void *settings)
+{
+	GIT_UNUSED(opts);
+	GIT_UNUSED(settings);
+	SSL_load_error_strings();
+	OpenSSL_add_ssl_algorithms();
+	return 0;
+}
+
+static BIO_METHOD* BIO_meth_new(int type, const char *name)
+{
+	BIO_METHOD *meth = git__calloc(1, sizeof(BIO_METHOD));
+	if (!meth) {
+		return NULL;
+	}
+
+	meth->type = type;
+	meth->name = name;
+
+	return meth;
+}
+
+static void BIO_meth_free(BIO_METHOD *biom)
+{
+	git__free(biom);
+}
+
+static int BIO_meth_set_write(BIO_METHOD *biom, int (*write) (BIO *, const char *, int))
+{
+	biom->bwrite = write;
+	return 1;
+}
+
+static int BIO_meth_set_read(BIO_METHOD *biom, int (*read) (BIO *, char *, int))
+{
+	biom->bread = read;
+	return 1;
+}
+
+static int BIO_meth_set_puts(BIO_METHOD *biom, int (*puts) (BIO *, const char *))
+{
+	biom->bputs = puts;
+	return 1;
+}
+
+static int BIO_meth_set_gets(BIO_METHOD *biom, int (*gets) (BIO *, char *, int))
+
+{
+	biom->bgets = gets;
+	return 1;
+}
+
+static int BIO_meth_set_ctrl(BIO_METHOD *biom, long (*ctrl) (BIO *, int, long, void *))
+{
+	biom->ctrl = ctrl;
+	return 1;
+}
+
+static int BIO_meth_set_create(BIO_METHOD *biom, int (*create) (BIO *))
+{
+	biom->create = create;
+	return 1;
+}
+
+static int BIO_meth_set_destroy(BIO_METHOD *biom, int (*destroy) (BIO *))
+{
+	biom->destroy = destroy;
+	return 1;
+}
+
+static int BIO_get_new_index(void)
+{
+	/* This exists as of 1.1 so before we'd just have 0 */
+	return 0;
+}
+
+static void BIO_set_init(BIO *b, int init)
+{
+	b->init = init;
+}
+
+static void BIO_set_data(BIO *a, void *ptr)
+{
+	a->ptr = ptr;
+}
+
+static void *BIO_get_data(BIO *a)
+{
+	return a->ptr;
+}
+
+static const unsigned char *ASN1_STRING_get0_data(const ASN1_STRING *x)
+{
+	return ASN1_STRING_data((ASN1_STRING *)x);
+}
+
+# if defined(GIT_THREADS)
 static git_mutex *openssl_locks;
 
 static void openssl_locking_function(
@@ -70,8 +173,8 @@ static void shutdown_ssl_locking(void)
 		git_mutex_free(&openssl_locks[i]);
 	git__free(openssl_locks);
 }
-
-#endif /* GIT_THREADS && OPENSSL_VERSION_NUMBER < 0x10100000L */
+# endif /* GIT_THREADS */
+#endif /* OPENSSL_LEGACY_API */
 
 static BIO_METHOD *git_stream_bio_method;
 static int init_bio_method(void);
@@ -95,7 +198,6 @@ static void shutdown_ssl(void)
 
 int git_openssl_stream_global_init(void)
 {
-#ifdef GIT_OPENSSL
 	long ssl_opts = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 	const char *ciphers = git_libgit2__ssl_ciphers();
 
@@ -104,13 +206,7 @@ int git_openssl_stream_global_init(void)
 	ssl_opts |= SSL_OP_NO_COMPRESSION;
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-    (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
-	SSL_load_error_strings();
-	OpenSSL_add_ssl_algorithms();
-#else
 	OPENSSL_init_ssl(0, NULL);
-#endif
 
 	/*
 	 * Load SSLv{2,3} and TLSv1 so that we can talk with servers
@@ -118,60 +214,58 @@ int git_openssl_stream_global_init(void)
 	 * compatibility. We then disable SSL so we only allow OpenSSL
 	 * to speak TLSv1 to perform the encryption itself.
 	 */
-	git__ssl_ctx = SSL_CTX_new(SSLv23_method());
+	if (!(git__ssl_ctx = SSL_CTX_new(SSLv23_method())))
+		goto error;
+
 	SSL_CTX_set_options(git__ssl_ctx, ssl_opts);
 	SSL_CTX_set_mode(git__ssl_ctx, SSL_MODE_AUTO_RETRY);
 	SSL_CTX_set_verify(git__ssl_ctx, SSL_VERIFY_NONE, NULL);
-	if (!SSL_CTX_set_default_verify_paths(git__ssl_ctx)) {
-		SSL_CTX_free(git__ssl_ctx);
-		git__ssl_ctx = NULL;
-		return -1;
-	}
+	if (!SSL_CTX_set_default_verify_paths(git__ssl_ctx))
+		goto error;
 
-	if (!ciphers) {
+	if (!ciphers)
 		ciphers = GIT_SSL_DEFAULT_CIPHERS;
-	}
 
-	if(!SSL_CTX_set_cipher_list(git__ssl_ctx, ciphers)) {
-		SSL_CTX_free(git__ssl_ctx);
-		git__ssl_ctx = NULL;
-		return -1;
-	}
+	if(!SSL_CTX_set_cipher_list(git__ssl_ctx, ciphers))
+		goto error;
 
-	if (init_bio_method() < 0) {
-		SSL_CTX_free(git__ssl_ctx);
-		git__ssl_ctx = NULL;
-		return -1;
-	}
-
-#endif
+	if (init_bio_method() < 0)
+		goto error;
 
 	git__on_shutdown(shutdown_ssl);
 
 	return 0;
+
+error:
+	git_error_set(GIT_ERROR_NET, "could not initialize openssl: %s",
+		ERR_error_string(ERR_get_error(), NULL));
+	SSL_CTX_free(git__ssl_ctx);
+	git__ssl_ctx = NULL;
+	return -1;
 }
 
-#if defined(GIT_THREADS)
+#if defined(GIT_THREADS) && defined(OPENSSL_LEGACY_API)
 static void threadid_cb(CRYPTO_THREADID *threadid)
 {
-    CRYPTO_THREADID_set_numeric(threadid, git_thread_currentid());
+	GIT_UNUSED(threadid);
+	CRYPTO_THREADID_set_numeric(threadid, git_thread_currentid());
 }
 #endif
 
 int git_openssl_set_locking(void)
 {
-#if defined(GIT_THREADS) && OPENSSL_VERSION_NUMBER < 0x10100000L
+#if defined(GIT_THREADS) && defined(OPENSSL_LEGACY_API)
 	int num_locks, i;
 
 	CRYPTO_THREADID_set_callback(threadid_cb);
 
 	num_locks = CRYPTO_num_locks();
 	openssl_locks = git__calloc(num_locks, sizeof(git_mutex));
-	GITERR_CHECK_ALLOC(openssl_locks);
+	GIT_ERROR_CHECK_ALLOC(openssl_locks);
 
 	for (i = 0; i < num_locks; i++) {
 		if (git_mutex_init(&openssl_locks[i]) != 0) {
-			giterr_set(GITERR_SSL, "failed to initialize openssl locks");
+			git_error_set(GIT_ERROR_SSL, "failed to initialize openssl locks");
 			return -1;
 		}
 	}
@@ -179,10 +273,10 @@ int git_openssl_set_locking(void)
 	CRYPTO_set_locking_callback(openssl_locking_function);
 	git__on_shutdown(shutdown_ssl_locking);
 	return 0;
-#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
+#elif !defined(OPENSSL_LEGACY_API)
 	return 0;
 #else
-	giterr_set(GITERR_THREAD, "libgit2 was not built with threads");
+	git_error_set(GIT_ERROR_THREAD, "libgit2 was not built with threads");
 	return -1;
 #endif
 }
@@ -249,7 +343,7 @@ static int init_bio_method(void)
 {
 	/* Set up the BIO_METHOD we use for wrapping our own stream implementations */
 	git_stream_bio_method = BIO_meth_new(BIO_TYPE_SOURCE_SINK | BIO_get_new_index(), "git_stream");
-	GITERR_CHECK_ALLOC(git_stream_bio_method);
+	GIT_ERROR_CHECK_ALLOC(git_stream_bio_method);
 
 	BIO_meth_set_write(git_stream_bio_method, bio_write);
 	BIO_meth_set_read(git_stream_bio_method, bio_read);
@@ -275,23 +369,23 @@ static int ssl_set_error(SSL *ssl, int error)
 	switch (err) {
 	case SSL_ERROR_WANT_CONNECT:
 	case SSL_ERROR_WANT_ACCEPT:
-		giterr_set(GITERR_NET, "SSL error: connection failure");
+		git_error_set(GIT_ERROR_SSL, "SSL error: connection failure");
 		break;
 	case SSL_ERROR_WANT_X509_LOOKUP:
-		giterr_set(GITERR_NET, "SSL error: x509 error");
+		git_error_set(GIT_ERROR_SSL, "SSL error: x509 error");
 		break;
 	case SSL_ERROR_SYSCALL:
 		e = ERR_get_error();
 		if (e > 0) {
 			char errmsg[256];
 			ERR_error_string_n(e, errmsg, sizeof(errmsg));
-			giterr_set(GITERR_NET, "SSL error: %s", errmsg);
+			git_error_set(GIT_ERROR_NET, "SSL error: %s", errmsg);
 			break;
 		} else if (error < 0) {
-			giterr_set(GITERR_OS, "SSL error: syscall failure");
+			git_error_set(GIT_ERROR_OS, "SSL error: syscall failure");
 			break;
 		}
-		giterr_set(GITERR_NET, "SSL error: received early EOF");
+		git_error_set(GIT_ERROR_SSL, "SSL error: received early EOF");
 		return GIT_EEOF;
 		break;
 	case SSL_ERROR_SSL:
@@ -299,13 +393,13 @@ static int ssl_set_error(SSL *ssl, int error)
 		char errmsg[256];
 		e = ERR_get_error();
 		ERR_error_string_n(e, errmsg, sizeof(errmsg));
-		giterr_set(GITERR_NET, "SSL error: %s", errmsg);
+		git_error_set(GIT_ERROR_SSL, "SSL error: %s", errmsg);
 		break;
 	}
 	case SSL_ERROR_NONE:
 	case SSL_ERROR_ZERO_RETURN:
 	default:
-		giterr_set(GITERR_NET, "SSL error: unknown error");
+		git_error_set(GIT_ERROR_SSL, "SSL error: unknown error");
 		break;
 	}
 	return -1;
@@ -349,7 +443,7 @@ static int verify_server_cert(SSL *ssl, const char *host)
 	int i = -1, j, error = 0;
 
 	if (SSL_get_verify_result(ssl) != X509_V_OK) {
-		giterr_set(GITERR_SSL, "the SSL certificate is invalid");
+		git_error_set(GIT_ERROR_SSL, "the SSL certificate is invalid");
 		return GIT_ECERTIFICATE;
 	}
 
@@ -368,7 +462,7 @@ static int verify_server_cert(SSL *ssl, const char *host)
 	cert = SSL_get_peer_certificate(ssl);
 	if (!cert) {
 		error = -1;
-		giterr_set(GITERR_SSL, "the server did not provide a certificate");
+		git_error_set(GIT_ERROR_SSL, "the server did not provide a certificate");
 		goto cleanup;
 	}
 
@@ -435,7 +529,7 @@ static int verify_server_cert(SSL *ssl, const char *host)
 
 		if (size > 0) {
 			peer_cn = OPENSSL_malloc(size + 1);
-			GITERR_CHECK_ALLOC(peer_cn);
+			GIT_ERROR_CHECK_ALLOC(peer_cn);
 			memcpy(peer_cn, ASN1_STRING_get0_data(str), size);
 			peer_cn[size] = '\0';
 		} else {
@@ -443,7 +537,7 @@ static int verify_server_cert(SSL *ssl, const char *host)
 		}
 	} else {
 		int size = ASN1_STRING_to_UTF8(&peer_cn, str);
-		GITERR_CHECK_ALLOC(peer_cn);
+		GIT_ERROR_CHECK_ALLOC(peer_cn);
 		if (memchr(peer_cn, '\0', size))
 			goto cert_fail_name;
 	}
@@ -455,7 +549,7 @@ static int verify_server_cert(SSL *ssl, const char *host)
 
 cert_fail_name:
 	error = GIT_ECERTIFICATE;
-	giterr_set(GITERR_SSL, "hostname does not match certificate");
+	git_error_set(GIT_ERROR_SSL, "hostname does not match certificate");
 	goto cleanup;
 
 on_error:
@@ -471,27 +565,24 @@ cleanup:
 typedef struct {
 	git_stream parent;
 	git_stream *io;
+	int owned;
 	bool connected;
 	char *host;
 	SSL *ssl;
 	git_cert_x509 cert_info;
 } openssl_stream;
 
-int openssl_close(git_stream *stream);
-
-int openssl_connect(git_stream *stream)
+static int openssl_connect(git_stream *stream)
 {
 	int ret;
 	BIO *bio;
 	openssl_stream *st = (openssl_stream *) stream;
 
-	if ((ret = git_stream_connect(st->io)) < 0)
+	if (st->owned && (ret = git_stream_connect(st->io)) < 0)
 		return ret;
 
-	st->connected = true;
-
 	bio = BIO_new(git_stream_bio_method);
-	GITERR_CHECK_ALLOC(bio);
+	GIT_ERROR_CHECK_ALLOC(bio);
 
 	BIO_set_data(bio, st->io);
 	SSL_set_bio(st->ssl, bio, bio);
@@ -504,10 +595,12 @@ int openssl_connect(git_stream *stream)
 	if ((ret = SSL_connect(st->ssl)) <= 0)
 		return ssl_set_error(st->ssl, ret);
 
+	st->connected = true;
+
 	return verify_server_cert(st->ssl, st->host);
 }
 
-int openssl_certificate(git_cert **out, git_stream *stream)
+static int openssl_certificate(git_cert **out, git_stream *stream)
 {
 	openssl_stream *st = (openssl_stream *) stream;
 	int len;
@@ -517,19 +610,19 @@ int openssl_certificate(git_cert **out, git_stream *stream)
 	/* Retrieve the length of the certificate first */
 	len = i2d_X509(cert, NULL);
 	if (len < 0) {
-		giterr_set(GITERR_NET, "failed to retrieve certificate information");
+		git_error_set(GIT_ERROR_NET, "failed to retrieve certificate information");
 		return -1;
 	}
 
 	encoded_cert = git__malloc(len);
-	GITERR_CHECK_ALLOC(encoded_cert);
+	GIT_ERROR_CHECK_ALLOC(encoded_cert);
 	/* i2d_X509 makes 'guard' point to just after the data */
 	guard = encoded_cert;
 
 	len = i2d_X509(cert, &guard);
 	if (len < 0) {
 		git__free(encoded_cert);
-		giterr_set(GITERR_NET, "failed to retrieve certificate information");
+		git_error_set(GIT_ERROR_NET, "failed to retrieve certificate information");
 		return -1;
 	}
 
@@ -549,21 +642,20 @@ static int openssl_set_proxy(git_stream *stream, const git_proxy_options *proxy_
 	return git_stream_set_proxy(st->io, proxy_opts);
 }
 
-ssize_t openssl_write(git_stream *stream, const char *data, size_t len, int flags)
+static ssize_t openssl_write(git_stream *stream, const char *data, size_t data_len, int flags)
 {
 	openssl_stream *st = (openssl_stream *) stream;
-	int ret;
+	int ret, len = min(data_len, INT_MAX);
 
 	GIT_UNUSED(flags);
 
-	if ((ret = SSL_write(st->ssl, data, len)) <= 0) {
+	if ((ret = SSL_write(st->ssl, data, len)) <= 0)
 		return ssl_set_error(st->ssl, ret);
-	}
 
 	return ret;
 }
 
-ssize_t openssl_read(git_stream *stream, void *data, size_t len)
+static ssize_t openssl_read(git_stream *stream, void *data, size_t len)
 {
 	openssl_stream *st = (openssl_stream *) stream;
 	int ret;
@@ -574,7 +666,7 @@ ssize_t openssl_read(git_stream *stream, void *data, size_t len)
 	return ret;
 }
 
-int openssl_close(git_stream *stream)
+static int openssl_close(git_stream *stream)
 {
 	openssl_stream *st = (openssl_stream *) stream;
 	int ret;
@@ -584,47 +676,47 @@ int openssl_close(git_stream *stream)
 
 	st->connected = false;
 
-	return git_stream_close(st->io);
+	return st->owned ? git_stream_close(st->io) : 0;
 }
 
-void openssl_free(git_stream *stream)
+static void openssl_free(git_stream *stream)
 {
 	openssl_stream *st = (openssl_stream *) stream;
+
+	if (st->owned)
+		git_stream_free(st->io);
 
 	SSL_free(st->ssl);
 	git__free(st->host);
 	git__free(st->cert_info.data);
-	git_stream_free(st->io);
 	git__free(st);
 }
 
-int git_openssl_stream_new(git_stream **out, const char *host, const char *port)
+static int openssl_stream_wrap(
+	git_stream **out,
+	git_stream *in,
+	const char *host,
+	int owned)
 {
-	int error;
 	openssl_stream *st;
 
+	assert(out && in && host);
+
 	st = git__calloc(1, sizeof(openssl_stream));
-	GITERR_CHECK_ALLOC(st);
+	GIT_ERROR_CHECK_ALLOC(st);
 
-	st->io = NULL;
-#ifdef GIT_CURL
-	error = git_curl_stream_new(&st->io, host, port);
-#else
-	error = git_socket_stream_new(&st->io, host, port);
-#endif
-
-	if (error < 0)
-		goto out_err;
+	st->io = in;
+	st->owned = owned;
 
 	st->ssl = SSL_new(git__ssl_ctx);
 	if (st->ssl == NULL) {
-		giterr_set(GITERR_SSL, "failed to create ssl object");
-		error = -1;
-		goto out_err;
+		git_error_set(GIT_ERROR_SSL, "failed to create ssl object");
+		git__free(st);
+		return -1;
 	}
 
 	st->host = git__strdup(host);
-	GITERR_CHECK_ALLOC(st->host);
+	GIT_ERROR_CHECK_ALLOC(st->host);
 
 	st->parent.version = GIT_STREAM_VERSION;
 	st->parent.encrypted = 1;
@@ -639,10 +731,27 @@ int git_openssl_stream_new(git_stream **out, const char *host, const char *port)
 
 	*out = (git_stream *) st;
 	return 0;
+}
 
-out_err:
-	git_stream_free(st->io);
-	git__free(st);
+int git_openssl_stream_wrap(git_stream **out, git_stream *in, const char *host)
+{
+	return openssl_stream_wrap(out, in, host, 0);
+}
+
+int git_openssl_stream_new(git_stream **out, const char *host, const char *port)
+{
+	git_stream *stream = NULL;
+	int error;
+
+	assert(out && host && port);
+
+	if ((error = git_socket_stream_new(&stream, host, port)) < 0)
+		return error;
+
+	if ((error = openssl_stream_wrap(out, stream, host, 1)) < 0) {
+		git_stream_close(stream);
+		git_stream_free(stream);
+	}
 
 	return error;
 }
@@ -653,7 +762,7 @@ int git_openssl__set_cert_location(const char *file, const char *path)
 		char errmsg[256];
 
 		ERR_error_string_n(ERR_get_error(), errmsg, sizeof(errmsg));
-		giterr_set(GITERR_SSL, "OpenSSL error: failed to load certificates: %s",
+		git_error_set(GIT_ERROR_SSL, "OpenSSL error: failed to load certificates: %s",
 			errmsg);
 
 		return -1;
@@ -673,26 +782,7 @@ int git_openssl_stream_global_init(void)
 
 int git_openssl_set_locking(void)
 {
-	giterr_set(GITERR_SSL, "libgit2 was not built with OpenSSL support");
-	return -1;
-}
-
-int git_openssl_stream_new(git_stream **out, const char *host, const char *port)
-{
-	GIT_UNUSED(out);
-	GIT_UNUSED(host);
-	GIT_UNUSED(port);
-
-	giterr_set(GITERR_SSL, "openssl is not supported in this version");
-	return -1;
-}
-
-int git_openssl__set_cert_location(const char *file, const char *path)
-{
-	GIT_UNUSED(file);
-	GIT_UNUSED(path);
-
-	giterr_set(GITERR_SSL, "openssl is not supported in this version");
+	git_error_set(GIT_ERROR_SSL, "libgit2 was not built with OpenSSL support");
 	return -1;
 }
 

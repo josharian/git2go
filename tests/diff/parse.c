@@ -54,7 +54,7 @@ static void test_parse_invalid_diff(const char *invalid_diff)
 	cl_git_fail_with(GIT_ERROR,
 		git_diff_from_buffer(&diff, buf.ptr, buf.size));
 
-	git_buf_free(&buf);
+	git_buf_dispose(&buf);
 }
 
 void test_diff_parse__exact_rename(void)
@@ -125,7 +125,7 @@ static void test_tree_to_tree_computed_to_parsed(
 	git_diff_free(computed);
 	git_diff_free(parsed);
 
-	git_buf_free(&computed_buf);
+	git_buf_dispose(&computed_buf);
 
 	cl_git_sandbox_cleanup();
 }
@@ -213,7 +213,7 @@ void test_diff_parse__get_patch_from_diff(void)
 	git_diff_free(computed);
 	git_diff_free(parsed);
 
-	git_buf_free(&computed_buf);
+	git_buf_dispose(&computed_buf);
 
 	cl_git_sandbox_cleanup();
 }
@@ -265,7 +265,7 @@ void test_diff_parse__parsing_minimal_patch_succeeds(void)
 	cl_assert_equal_s(patch, buf.ptr);
 
 	git_diff_free(diff);
-	git_buf_free(&buf);
+	git_buf_dispose(&buf);
 }
 
 void test_diff_parse__patch_roundtrip_succeeds(void)
@@ -285,8 +285,8 @@ void test_diff_parse__patch_roundtrip_succeeds(void)
 
 	git_patch_free(patch);
 	git_diff_free(diff);
-	git_buf_free(&patchbuf);
-	git_buf_free(&diffbuf);
+	git_buf_dispose(&patchbuf);
+	git_buf_dispose(&diffbuf);
 }
 
 #define cl_assert_equal_i_src(i1,i2,file,line) clar__assert_equal(file,line,#i1 " != " #i2, 1, "%d", (int)(i1), (int)(i2))
@@ -355,6 +355,43 @@ void test_diff_parse__lineinfo(void)
 	cl_git_assert_lineinfo(9, 9, 1, patch, 0, l++);
 
 	cl_assert_equal_i(n, l);
+
+	git_patch_free(patch);
+	git_diff_free(diff);
+}
+
+
+void test_diff_parse__new_file_with_space(void)
+{
+	const char *content = PATCH_ORIGINAL_NEW_FILE_WITH_SPACE;
+	git_patch *patch;
+	git_diff *diff;
+
+	cl_git_pass(git_diff_from_buffer(&diff, content, strlen(content)));
+	cl_git_pass(git_patch_from_diff((git_patch **) &patch, diff, 0));
+
+	cl_assert_equal_p(patch->diff_opts.old_prefix, NULL);
+	cl_assert_equal_p(patch->delta->old_file.path, NULL);
+	cl_assert_equal_s(patch->diff_opts.new_prefix, "b/");
+	cl_assert_equal_s(patch->delta->new_file.path, "sp ace.txt");
+
+	git_patch_free(patch);
+	git_diff_free(diff);
+}
+
+void test_diff_parse__crlf(void)
+{
+	const char *text = PATCH_CRLF;
+	git_diff *diff;
+	git_patch *patch;
+	const git_diff_delta *delta;
+
+	cl_git_pass(git_diff_from_buffer(&diff, text, strlen(text)));
+	cl_git_pass(git_patch_from_diff(&patch, diff, 0));
+	delta = git_patch_get_delta(patch);
+
+	cl_assert_equal_s(delta->old_file.path, "test-file");
+	cl_assert_equal_s(delta->new_file.path, "test-file");
 
 	git_patch_free(patch);
 	git_diff_free(diff);
