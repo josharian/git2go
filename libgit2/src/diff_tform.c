@@ -14,7 +14,7 @@
 #include "diff.h"
 #include "diff_generate.h"
 #include "path.h"
-#include "fileops.h"
+#include "futils.h"
 #include "config.h"
 
 git_diff_delta *git_diff__delta_dup(
@@ -510,7 +510,7 @@ static int similarity_sig(
 			if (file->size != git_blob_rawsize(info->blob))
 				file->size = git_blob_rawsize(info->blob);
 
-			sz = (size_t)(git__is_sizet(file->size) ? file->size : -1);
+			sz = git__is_sizet(file->size) ? (size_t)file->size : (size_t)-1;
 
 			error = opts->metric->buffer_signature(
 				&cache[info->idx], info->file,
@@ -560,13 +560,13 @@ static int similarity_measure(
 
 	/* if exact match is requested, force calculation of missing OIDs now */
 	if (exact_match) {
-		if (git_oid_iszero(&a_file->id) &&
+		if (git_oid_is_zero(&a_file->id) &&
 			diff->old_src == GIT_ITERATOR_TYPE_WORKDIR &&
 			!git_diff__oid_for_file(&a_file->id,
 				diff, a_file->path, a_file->mode, a_file->size))
 			a_file->flags |= GIT_DIFF_FLAG_VALID_ID;
 
-		if (git_oid_iszero(&b_file->id) &&
+		if (git_oid_is_zero(&b_file->id) &&
 			diff->new_src == GIT_ITERATOR_TYPE_WORKDIR &&
 			!git_diff__oid_for_file(&b_file->id,
 				diff, b_file->path, b_file->mode, b_file->size))

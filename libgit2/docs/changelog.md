@@ -1,7 +1,34 @@
-v0.28.3
--------
+v0.28 + 1
+---------
 
-This is a security release fixing the following issues:
+### Breaking API changes
+
+* The "private" implementation details of the `git_cred` structure have been
+  moved to a dedicated `git2/sys/cred.h` header, to clarify that the underlying
+  structures are only provided for custom transport implementers.
+  The breaking change is that the `username` member of the underlying struct
+  is now hidden, and a new `git_cred_get_username` function has been provided.
+
+### Breaking CMake configuration changes
+
+* The CMake option to use a system http-parser library, instead of the
+  bundled dependency, has changed.  This is due to a deficiency in
+  http-parser that we have fixed in our implementation.  The bundled
+  library is now the default, but if you wish to force the use of the
+  system http-parser implementation despite incompatibilities, you can
+  specify `-DUSE_HTTP_PARSER=system` to CMake.
+
+* The interactions between `USE_HTTPS` and `SHA1_BACKEND` have been
+  streamlined. The detection was moved to a new `USE_SHA1`, modeled after
+  `USE_HTTPS`, which takes the values "CollisionDetection/Backend/Generic", to
+  better match how the "hashing backend" is selected, the default (ON) being
+  "CollisionDetection". If you were using `SHA1_BACKEND` previously, you'll
+  need to check the value you've used, or switch to the autodetection.
+
+### Changes or improvements
+
+* libgit2 can now correctly cope with URLs where the host contains a colon
+  but a port is not specified.  (eg `http://example.com:/repo.git`).
 
 * A carefully constructed commit object with a very large number
   of parents may lead to potential out-of-bounds writes or
@@ -12,40 +39,6 @@ This is a security release fixing the following issues:
   location is not necessarily writable only by administrators, so we
   now ensure that the configuration file is owned by the administrator
   or the current user.
-
-v0.28.2
--------
-
-This is a bugfix release with the following changes:
-
-* Fix include directory ordering when using bundled dependencies.
-
-* Fix infinite loop when searching for a non-existing repository with
-  Windows-style paths including drive prefixes.
-
-* Fix paths with a trailing "/" not always being treated as
-  directories when computing ignores.
-
-* Fix false negatives when computing ignores where ignore rules
-  that are a prefix to a negative ignore rule exist.
-
-* Fix patches with CRLF line endings not being parsed correctly.
-
-* Fix segfault when parsing patches with file addition (deletion)
-  where the added (deleted) file name contains a space.
-
-* Fix assertion failure when trying to write to a non-existent
-  locked configuration file.
-
-v0.28.1
--------
-
-This is a bugfix release with the following change:
-
-* The deprecated functions (`git_buf_free` and the `giterr_` family of
-  functions) are now exported properly.  In the v0.28 release, they were
-  not given the correct external attributes and they did not have the
-  correct linkage visibility in the v0.28 library.
 
 v0.28
 -----

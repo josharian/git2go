@@ -13,7 +13,6 @@
  */
 
 #include "common.h"
-#include <assert.h>
 
 /* Define the printf format specifer to use for size_t output */
 #if defined(_MSC_VER) || defined(__MINGW32__)
@@ -66,7 +65,7 @@ static void parse_options(const char **repo_path, checkout_options *opts, struct
 		const char *curr = args->argv[args->pos];
 		int bool_arg;
 
-		if (strcmp(curr, "--") == 0) {
+		if (match_arg_separator(args)) {
 			break;
 		} else if (!strcmp(curr, "--force")) {
 			opts->force = 1;
@@ -172,9 +171,8 @@ cleanup:
 }
 
 /** That example's entry point */
-int main(int argc, char **argv)
+int lg2_checkout(git_repository *repo, int argc, char **argv)
 {
-	git_repository *repo = NULL;
 	struct args_info args = ARGS_INFO_INIT;
 	checkout_options opts;
 	git_repository_state_t state;
@@ -185,15 +183,6 @@ int main(int argc, char **argv)
 	/** Parse our command line options */
 	parse_options(&path, &opts, &args);
 
-	/** Initialize the library */
-	err = git_libgit2_init();
-	if (!err)
-		check_lg2(err, "Failed to initialize libgit2", NULL);
-
-	/** Open the repository corresponding to the options */
-	check_lg2(git_repository_open_ext(&repo, path, 0, NULL),
-			  "Could not open repository", NULL);
-
 	/** Make sure we're not about to checkout while something else is going on */
 	state = git_repository_state(repo);
 	if (state != GIT_REPOSITORY_STATE_NONE) {
@@ -201,11 +190,7 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	if (args.pos >= args.argc) {
-		fprintf(stderr, "unhandled\n");
-		err = -1;
-		goto cleanup;
-	} else if (strcmp("--", args.argv[args.pos])) {
+	if (match_arg_separator(&args)) {
 		/**
 		 * Try to checkout the given path
 		 */
@@ -227,9 +212,6 @@ int main(int argc, char **argv)
 
 cleanup:
 	git_annotated_commit_free(checkout_target);
-
-	git_repository_free(repo);
-	git_libgit2_shutdown();
 
 	return err;
 }

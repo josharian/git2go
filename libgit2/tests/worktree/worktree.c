@@ -42,7 +42,7 @@ void test_worktree_worktree__list_with_invalid_worktree_dirs(void)
 	};
 	git_buf path = GIT_BUF_INIT;
 	git_strarray wts;
-	unsigned i, j, len;
+	size_t i, j, len;
 
 	cl_git_pass(git_buf_printf(&path, "%s/worktrees/invalid",
 		    fixture.repo->commondir));
@@ -604,8 +604,8 @@ void test_worktree_worktree__foreach_head_gives_same_results_in_wt_and_repo(void
 	cl_git_pass(git_reference_lookup(&heads[0], fixture.repo, GIT_HEAD_FILE));
 	cl_git_pass(git_reference_lookup(&heads[1], fixture.worktree, GIT_HEAD_FILE));
 
-	cl_git_pass(git_repository_foreach_head(fixture.repo, read_head_ref, &repo_refs));
-	cl_git_pass(git_repository_foreach_head(fixture.worktree, read_head_ref, &worktree_refs));
+	cl_git_pass(git_repository_foreach_head(fixture.repo, read_head_ref, 0, &repo_refs));
+	cl_git_pass(git_repository_foreach_head(fixture.worktree, read_head_ref, 0, &worktree_refs));
 
 	cl_assert_equal_i(repo_refs.length, ARRAY_SIZE(heads));
 	cl_assert_equal_i(worktree_refs.length, ARRAY_SIZE(heads));

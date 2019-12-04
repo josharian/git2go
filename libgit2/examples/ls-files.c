@@ -13,7 +13,6 @@
  */
 
 #include "common.h"
-#include "array.h"
 
 /**
  * This example demonstrates the libgit2 index APIs to roughly
@@ -26,11 +25,11 @@
  * This currently supports the default behavior and the `--error-unmatch` option.
  */
 
-typedef struct {
+struct ls_options {
 	int error_unmatch;
 	char *files[1024];
 	size_t file_count;
-} ls_options;
+};
 
 static void usage(const char *message, const char *arg)
 {
@@ -42,12 +41,12 @@ static void usage(const char *message, const char *arg)
 	exit(1);
 }
 
-static int parse_options(ls_options *opts, int argc, char *argv[])
+static int parse_options(struct ls_options *opts, int argc, char *argv[])
 {
 	int parsing_files = 0;
 	int i;
 
-	memset(opts, 0, sizeof(ls_options));
+	memset(opts, 0, sizeof(struct ls_options));
 
 	if (argc < 2)
 		return 0;
@@ -79,7 +78,7 @@ static int parse_options(ls_options *opts, int argc, char *argv[])
 	return 0;
 }
 
-static int print_paths(ls_options *opts, git_index *index)
+static int print_paths(struct ls_options *opts, git_index *index)
 {
 	size_t i;
 	const git_index_entry *entry;
@@ -111,20 +110,14 @@ static int print_paths(ls_options *opts, git_index *index)
 	return 0;
 }
 
-int main(int argc, char *argv[])
+int lg2_ls_files(git_repository *repo, int argc, char *argv[])
 {
-	ls_options opts;
-	git_repository *repo = NULL;
 	git_index *index = NULL;
+	struct ls_options opts;
 	int error;
 
 	if ((error = parse_options(&opts, argc, argv)) < 0)
 		return error;
-
-	git_libgit2_init();
-
-	if ((error = git_repository_open_ext(&repo, ".", 0, NULL)) < 0)
-		goto cleanup;
 
 	if ((error = git_repository_index(&index, repo)) < 0)
 		goto cleanup;
@@ -133,8 +126,6 @@ int main(int argc, char *argv[])
 
 cleanup:
 	git_index_free(index);
-	git_repository_free(repo);
-	git_libgit2_shutdown();
 
 	return error;
 }
