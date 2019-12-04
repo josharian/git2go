@@ -19,12 +19,17 @@ if ($Env:SKIP_TESTS) { exit }
 function run_test {
 	$TestName = $args[0]
 
+	$TestCommand = (ctest -N -V -R "^$TestName$") -join "`n"
+
+	if (-Not ($TestCommand -match "(?ms).*\n^[0-9]*: Test command: ")) {
+		echo "Could not find tests: $TestName"
+		exit
+	}
+
 	$TestCommand = (ctest -N -V -R "^$TestName$") -join "`n" -replace "(?ms).*\n^[0-9]*: Test command: ","" -replace "\n.*",""
 	$TestCommand += " -r${BuildDir}\results_${TestName}.xml"
 
-	Write-Host $TestCommand
 	Invoke-Expression $TestCommand
-
 	if ($LastExitCode -ne 0) { $global:Success = $false }
 }
 
@@ -35,8 +40,8 @@ Write-Host "####################################################################
 if (-not $Env:SKIP_PROXY_TESTS) {
 	Write-Host ""
 	Write-Host "Starting HTTP proxy..."
-	Invoke-WebRequest -Method GET -Uri https://github.com/ethomson/poxyproxy/releases/download/v0.1.0/poxyproxy-0.1.0.jar -OutFile poxyproxy.jar
-	javaw -jar poxyproxy.jar -d --port 8080 --credentials foo:bar
+	Invoke-WebRequest -Method GET -Uri https://github.com/ethomson/poxyproxy/releases/download/v0.4.0/poxyproxy-0.4.0.jar -OutFile poxyproxy.jar
+	javaw -jar poxyproxy.jar -d --port 8080 --credentials foo:bar --quiet
 }
 
 Write-Host ""
@@ -45,6 +50,21 @@ Write-Host "## Running (offline) tests"
 Write-Host "##############################################################################"
 
 run_test offline
+
+if ($Env:RUN_INVASIVE_TESTS) {
+	Write-Host ""
+	Write-Host "##############################################################################"
+	Write-Host "## Running (invasive) tests"
+	Write-Host "##############################################################################"
+
+	$Env:GITTEST_INVASIVE_FS_SIZE=1
+	$Env:GITTEST_INVASIVE_MEMORY=1
+	$Env:GITTEST_INVASIVE_SPEED=1
+	run_test invasive
+	$Env:GITTEST_INVASIVE_FS_SIZE=$null
+	$Env:GITTEST_INVASIVE_MEMORY=$null
+	$Env:GITTEST_INVASIVE_SPEED=$null
+}
 
 if (-not $Env:SKIP_ONLINE_TESTS) {
 	Write-Host ""
@@ -60,11 +80,15 @@ if (-not $Env:SKIP_PROXY_TESTS) {
 	Write-Host "Running proxy tests"
 	Write-Host ""
 
-	$Env:GITTEST_REMOTE_PROXY_URL="localhost:8080"
+	$Env:GITTEST_REMOTE_PROXY_HOST="localhost:8080"
 	$Env:GITTEST_REMOTE_PROXY_USER="foo"
 	$Env:GITTEST_REMOTE_PROXY_PASS="bar"
 
 	run_test proxy
+
+	$Env:GITTEST_REMOTE_PROXY_HOST=$null
+	$Env:GITTEST_REMOTE_PROXY_USER=$null
+	$Env:GITTEST_REMOTE_PROXY_PASS=$null
 
 	taskkill /F /IM javaw.exe
 }

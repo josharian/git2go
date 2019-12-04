@@ -40,7 +40,7 @@ void test_submodule_inject_option__url(void)
 			   "[submodule \"naughty\"]\n"
 			   "    path = testrepo\n"
 			   "    url = -u./payload\n");
-	git_buf_free(&buf);
+	git_buf_dispose(&buf);
 
 	/* We do want to find it, but with the appropriate field empty */
 	foundit = 0;
@@ -65,7 +65,7 @@ void test_submodule_inject_option__path(void)
 			   "[submodule \"naughty\"]\n"
 			   "    path = --something\n"
 			   "    url = blah.git\n");
-	git_buf_free(&buf);
+	git_buf_dispose(&buf);
 
 	/* We do want to find it, but with the appropriate field empty */
 	foundit = 0;

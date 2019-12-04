@@ -167,7 +167,7 @@ void test_status_ignore__ignore_pattern_ignorecase(void)
 	cl_git_mkfile("empty_standard_repo/A.txt", "Differs in case");
 
 	cl_git_pass(git_repository_index(&index, g_repo));
-	ignore_case = (git_index_caps(index) & GIT_INDEXCAP_IGNORE_CASE) != 0;
+	ignore_case = (git_index_caps(index) & GIT_INDEX_CAPABILITY_IGNORE_CASE) != 0;
 	git_index_free(index);
 
 	cl_git_pass(git_status_file(&flags, g_repo, "A.txt"));
@@ -601,7 +601,7 @@ void test_status_ignore__filenames_with_special_prefixes_do_not_interfere_with_s
 		cl_assert(st.status == GIT_STATUS_WT_NEW);
 
 		cl_git_sandbox_cleanup();
-		git_buf_free(&file);
+		git_buf_dispose(&file);
 	}
 }
 

@@ -13,6 +13,8 @@
 #include "buffer.h"
 #include "vector.h"
 
+#include "git2/sys/path.h"
+
 /**
  * Path manipulation utils
  *
@@ -646,78 +648,6 @@ extern bool git_path_isvalid(
 int git_path_normalize_slashes(git_buf *out, const char *path);
 
 /**
- * Check whether a path component corresponds to a .gitmodules file
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_dotgit_modules(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitmodules file in NTFS
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_ntfs_dotgit_modules(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitmodules file in HFS+
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_hfs_dotgit_modules(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitignore file
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_dotgit_ignore(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitignore file in NTFS
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_ntfs_dotgit_ignore(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitignore file in HFS+
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_hfs_dotgit_ignore(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitignore file
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_dotgit_attributes(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitattributes file in NTFS
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_ntfs_dotgit_attributes(const char *name, size_t len);
-
-/**
- * Check whether a path component corresponds to a .gitattributes file in HFS+
- *
- * @param name the path component to check
- * @param len the length of `name`
- */
-extern int git_path_is_hfs_dotgit_attributes(const char *name, size_t len);
-
-/*
  * Validate a system file's ownership
  *
  * Verify that the file in question is owned by an administrator or system
