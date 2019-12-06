@@ -441,6 +441,24 @@ func (v *ReferenceNameIterator) Next() (string, error) {
 	return C.GoString(ptr), nil
 }
 
+// Slice returns a slice of all reference names.
+// It is a convenience function similar to calling Next repeatedly.
+// If Slice encounters an error, it returns all reference names up to that error.
+func (v *ReferenceNameIterator) Slice() ([]string, error) {
+	// TODO: implement directly in terms of git_reference_next_name?
+	var all []string
+	for {
+		s, err := v.Next()
+		if IsErrorCode(err, ErrIterOver) {
+			return all, nil
+		}
+		if err != nil {
+			return all, err
+		}
+		all = append(all, s)
+	}
+}
+
 // Next retrieves the next reference. If the iteration is over, the
 // returned error is git.ErrIterOver.
 func (v *ReferenceIterator) Next() (*Reference, error) {
