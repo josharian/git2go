@@ -401,7 +401,7 @@ func (repo *Repository) NewReferenceNameIterator() (*ReferenceNameIterator, erro
 }
 
 // NewReferenceIteratorGlob creates an iterator over reference names
-// that match the speicified glob. The glob is of the usual fnmatch
+// that match the specified glob. The glob is of the usual fnmatch
 // type.
 func (repo *Repository) NewReferenceIteratorGlob(glob string) (*ReferenceIterator, error) {
 	cstr := C.CString(glob)
@@ -419,12 +419,14 @@ func (repo *Repository) NewReferenceIteratorGlob(glob string) (*ReferenceIterato
 	return newReferenceIteratorFromC(ptr, repo), nil
 }
 
+// Names returns an iterator that returns reference names
+// instead of full references.
 func (i *ReferenceIterator) Names() *ReferenceNameIterator {
 	return &ReferenceNameIterator{i}
 }
 
-// NextName retrieves the next reference name. If the iteration is over,
-// the returned error is git.ErrIterOver
+// Next retrieves the next reference name. If the iteration is over,
+// the returned error is git.ErrIterOver.
 func (v *ReferenceNameIterator) Next() (string, error) {
 	var ptr *C.char
 
@@ -439,8 +441,8 @@ func (v *ReferenceNameIterator) Next() (string, error) {
 	return C.GoString(ptr), nil
 }
 
-// Next retrieves the next reference. If the iterationis over, the
-// returned error is git.ErrIterOver
+// Next retrieves the next reference. If the iteration is over, the
+// returned error is git.ErrIterOver.
 func (v *ReferenceIterator) Next() (*Reference, error) {
 	var ptr *C.git_reference
 
