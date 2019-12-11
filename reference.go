@@ -330,25 +330,28 @@ func (v *Reference) Type() ReferenceType {
 	return ret
 }
 
+// IsBranch reports whether the reference is a branch.
 func (v *Reference) IsBranch() bool {
 	ret := C.git_reference_is_branch(v.ptr) == 1
 	runtime.KeepAlive(v)
 	return ret
 }
 
+// IsRemote reports whether the reference is a remote reference.
 func (v *Reference) IsRemote() bool {
 	ret := C.git_reference_is_remote(v.ptr) == 1
 	runtime.KeepAlive(v)
 	return ret
 }
 
+// IsTag reports whether the reference is a tag.
 func (v *Reference) IsTag() bool {
 	ret := C.git_reference_is_tag(v.ptr) == 1
 	runtime.KeepAlive(v)
 	return ret
 }
 
-// IsNote checks if the reference is a note.
+// IsNote reports whether the reference is a note.
 func (v *Reference) IsNote() bool {
 	ret := C.git_reference_is_note(v.ptr) == 1
 	runtime.KeepAlive(v)
