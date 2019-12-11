@@ -14,14 +14,36 @@
 #include "win32/w32_buffer.h"
 #include "win32/w32_util.h"
 #include "win32/version.h"
-#include <AclAPI.h>
+#include <aclapi.h>
 #else
 #include <dirent.h>
 #endif
 #include <stdio.h>
 #include <ctype.h>
 
-#define LOOKS_LIKE_DRIVE_PREFIX(S) (git__isalpha((S)[0]) && (S)[1] == ':')
+static int dos_drive_prefix_length(const char *path)
+{
+	int i;
+
+	/*
+	 * Does it start with an ASCII letter (i.e. highest bit not set),
+	 * followed by a colon?
+	 */
+	if (!(0x80 & (unsigned char)*path))
+		return *path && path[1] == ':' ? 2 : 0;
+
+	/*
+	 * While drive letters must be letters of the English alphabet, it is
+	 * possible to assign virtually _any_ Unicode character via `subst` as
+	 * a drive letter to "virtual drives". Even `1`, or `ä`. Or fun stuff
+	 * like this:
+	 *
+	 *	subst ֍: %USERPROFILE%\Desktop
+	 */
+	for (i = 1; i < 4 && (0x80 & (unsigned char)path[i]); i++)
+		; /* skip first UTF-8 character */
+	return path[i] == ':' ? i + 1 : 0;
+}
 
 #ifdef GIT_WIN32
 static bool looks_like_network_computer_name(const char *path, int pos)
@@ -123,11 +145,11 @@ static int win32_prefix_length(const char *path, int len)
 	GIT_UNUSED(len);
 #else
 	/*
-	 * Mimic unix behavior where '/.git' returns '/': 'C:/.git' will return
-	 * 'C:/' here
+	 * Mimic unix behavior where '/.git' returns '/': 'C:/.git'
+	 * will return 'C:/' here
 	 */
-	if (len == 2 && LOOKS_LIKE_DRIVE_PREFIX(path))
-		return 2;
+	if (dos_drive_prefix_length(path) == len)
+		return len;
 
 	/*
 	 * Similarly checks if we're dealing with a network computer name
@@ -161,7 +183,13 @@ int git_path_dirname_r(git_buf *buffer, const char *path)
 	while (endp > path && *endp == '/')
 		endp--;
 
-	if ((len = win32_prefix_length(path, endp - path + 1)) > 0) {
+	if (endp - path + 1 > INT_MAX) {
+		git_error_set(GIT_ERROR_INVALID, "path too long");
+		len = -1;
+		goto Exit;
+	}
+
+	if ((len = win32_prefix_length(path, (int)(endp - path + 1))) > 0) {
 		is_prefix = 1;
 		goto Exit;
 	}
@@ -181,7 +209,13 @@ int git_path_dirname_r(git_buf *buffer, const char *path)
 		endp--;
 	} while (endp > path && *endp == '/');
 
-	if ((len = win32_prefix_length(path, endp - path + 1)) > 0) {
+	if (endp - path + 1 > INT_MAX) {
+		git_error_set(GIT_ERROR_INVALID, "path too long");
+		len = -1;
+		goto Exit;
+	}
+
+	if ((len = win32_prefix_length(path, (int)(endp - path + 1))) > 0) {
 		is_prefix = 1;
 		goto Exit;
 	}
@@ -260,11 +294,11 @@ const char *git_path_topdir(const char *path)
 
 int git_path_root(const char *path)
 {
-	int offset = 0;
+	int offset = 0, prefix_len;
 
 	/* Does the root of the path look like a windows drive ? */
-	if (LOOKS_LIKE_DRIVE_PREFIX(path))
-		offset += 2;
+	if ((prefix_len = dos_drive_prefix_length(path)))
+		offset += prefix_len;
 
 #ifdef GIT_WIN32
 	/* Are we dealing with a windows network path? */
@@ -277,9 +311,12 @@ int git_path_root(const char *path)
 		while (path[offset] && path[offset] != '/' && path[offset] != '\\')
 			offset++;
 	}
+
+	if (path[offset] == '\\')
+		return offset;
 #endif
 
-	if (path[offset] == '/' || path[offset] == '\\')
+	if (path[offset] == '/')
 		return offset;
 
 	return -1;	/* Not a real error - signals that path is not rooted */
@@ -1609,8 +1646,12 @@ GIT_INLINE(bool) verify_dotgit_ntfs(git_repository *repo, const char *path, size
 	if (!start)
 		return true;
 
-	/* Reject paths like ".git\" */
-	if (path[start] == '\\')
+	/*
+	 * Reject paths that start with Windows-style directory separators
+	 * (".git\") or NTFS alternate streams (".git:") and could be used
+	 * to write to the ".git" directory on Windows platforms.
+	 */
+	if (path[start] == '\\' || path[start] == ':')
 		return false;
 
 	/* Reject paths like '.git ' or '.git.' */
@@ -1622,12 +1663,21 @@ GIT_INLINE(bool) verify_dotgit_ntfs(git_repository *repo, const char *path, size
 	return false;
 }
 
-GIT_INLINE(bool) only_spaces_and_dots(const char *path)
+/*
+ * Windows paths that end with spaces and/or dots are elided to the
+ * path without them for backward compatibility.  That is to say
+ * that opening file "foo ", "foo." or even "foo . . ." will all
+ * map to a filename of "foo".  This function identifies spaces and
+ * dots at the end of a filename, whether the proper end of the
+ * filename (end of string) or a colon (which would indicate a
+ * Windows alternate data stream.)
+ */
+GIT_INLINE(bool) ntfs_end_of_filename(const char *path)
 {
 	const char *c = path;
 
 	for (;; c++) {
-		if (*c == '\0')
+		if (*c == '\0' || *c == ':')
 			return true;
 		if (*c != ' ' && *c != '.')
 			return false;
@@ -1642,13 +1692,13 @@ GIT_INLINE(bool) verify_dotgit_ntfs_generic(const char *name, size_t len, const 
 
 	if (name[0] == '.' && len >= dotgit_len &&
 	    !strncasecmp(name + 1, dotgit_name, dotgit_len)) {
-		return !only_spaces_and_dots(name + dotgit_len + 1);
+		return !ntfs_end_of_filename(name + dotgit_len + 1);
 	}
 
 	/* Detect the basic NTFS shortname with the first six chars */
 	if (!strncasecmp(name, dotgit_name, 6) && name[6] == '~' &&
 	    name[7] >= '1' && name[7] <= '4')
-		return !only_spaces_and_dots(name + 8);
+		return !ntfs_end_of_filename(name + 8);
 
 	/* Catch fallback names */
 	for (i = 0, saw_tilde = 0; i < 8; i++) {
@@ -1670,7 +1720,7 @@ GIT_INLINE(bool) verify_dotgit_ntfs_generic(const char *name, size_t len, const 
 		}
 	}
 
-	return !only_spaces_and_dots(name + i);
+	return !ntfs_end_of_filename(name + i);
 }
 
 GIT_INLINE(bool) verify_char(unsigned char c, unsigned int flags)
@@ -1804,7 +1854,7 @@ GIT_INLINE(unsigned int) dotgit_flags(
 	git_repository *repo,
 	unsigned int flags)
 {
-	int protectHFS = 0, protectNTFS = 0;
+	int protectHFS = 0, protectNTFS = 1;
 	int error = 0;
 
 	flags |= GIT_PATH_REJECT_DOT_GIT_LITERAL;
@@ -1813,17 +1863,13 @@ GIT_INLINE(unsigned int) dotgit_flags(
 	protectHFS = 1;
 #endif
 
-#ifdef GIT_WIN32
-	protectNTFS = 1;
-#endif
-
 	if (repo && !protectHFS)
-		error = git_repository__cvar(&protectHFS, repo, GIT_CVAR_PROTECTHFS);
+		error = git_repository__configmap_lookup(&protectHFS, repo, GIT_CONFIGMAP_PROTECTHFS);
 	if (!error && protectHFS)
 		flags |= GIT_PATH_REJECT_DOT_GIT_HFS;
 
-	if (repo && !protectNTFS)
-		error = git_repository__cvar(&protectNTFS, repo, GIT_CVAR_PROTECTNTFS);
+	if (repo)
+		error = git_repository__configmap_lookup(&protectNTFS, repo, GIT_CONFIGMAP_PROTECTNTFS);
 	if (!error && protectNTFS)
 		flags |= GIT_PATH_REJECT_DOT_GIT_NTFS;
 
@@ -1909,6 +1955,28 @@ extern int git_path_is_gitfile(const char *path, size_t pathlen, git_path_gitfil
 		git_error_set(GIT_ERROR_OS, "invalid filesystem for path validation");
 		return -1;
 	}
+}
+
+bool git_path_supports_symlinks(const char *dir)
+{
+	git_buf path = GIT_BUF_INIT;
+	bool supported = false;
+	struct stat st;
+	int fd;
+
+	if ((fd = git_futils_mktmp(&path, dir, 0666)) < 0 ||
+	    p_close(fd) < 0 ||
+	    p_unlink(path.ptr) < 0 ||
+	    p_symlink("testing", path.ptr) < 0 ||
+	    p_lstat(path.ptr, &st) < 0)
+		goto done;
+
+	supported = (S_ISLNK(st.st_mode) != 0);
+done:
+	if (path.size)
+		(void)p_unlink(path.ptr);
+	git_buf_dispose(&path);
+	return supported;
 }
 
 int git_path_validate_system_file_ownership(const char *path)

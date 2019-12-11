@@ -1,7 +1,91 @@
-v0.28.3
--------
+v0.28 + 1
+---------
 
-This is a security release fixing the following issues:
+# Security Fixes
+
+- CVE-2019-1348: the fast-import stream command "feature
+  export-marks=path" allows writing to arbitrary file paths. As
+  libgit2 does not offer any interface for fast-import, it is not
+  susceptible to this vulnerability.
+
+- CVE-2019-1349: by using NTFS 8.3 short names, backslashes or
+  alternate filesystreams, it is possible to cause submodules to
+  be written into pre-existing directories during a recursive
+  clone using git. As libgit2 rejects cloning into non-empty
+  directories by default, it is not susceptible to this
+  vulnerability.
+
+- CVE-2019-1350: recursive clones may lead to arbitrary remote
+  code executing due to improper quoting of command line
+  arguments. As libgit2 uses libssh2, which does not require us
+  to perform command line parsing, it is not susceptible to this
+  vulnerability.
+
+- CVE-2019-1351: Windows provides the ability to substitute
+  drive letters with arbitrary letters, including multi-byte
+  Unicode letters. To fix any potential issues arising from
+  interpreting such paths as relative paths, we have extended
+  detection of DOS drive prefixes to accomodate for such cases.
+
+- CVE-2019-1352: by using NTFS-style alternative file streams for
+  the ".git" directory, it is possible to overwrite parts of the
+  repository. While this has been fixed in the past for Windows,
+  the same vulnerability may also exist on other systems that
+  write to NTFS filesystems. We now reject any paths starting
+  with ".git:" on all systems.
+
+- CVE-2019-1353: by using NTFS-style 8.3 short names, it was
+  possible to write to the ".git" directory and thus overwrite
+  parts of the repository, leading to possible remote code
+  execution. While this problem was already fixed in the past for
+  Windows, other systems accessing NTFS filesystems are
+  vulnerable to this issue too. We now enable NTFS protecions by
+  default on all systems to fix this attack vector.
+
+- CVE-2019-1354: on Windows, backslashes are not a valid part of
+  a filename but are instead interpreted as directory separators.
+  As other platforms allowed to use such paths, it was possible
+  to write such invalid entries into a Git repository and was
+  thus an attack vector to write into the ".git" dierctory. We
+  now reject any entries starting with ".git\" on all systems.
+
+- CVE-2019-1387: it is possible to let a submodule's git
+  directory point into a sibling's submodule directory, which may
+  result in overwriting parts of the Git repository and thus lead
+  to arbitrary command execution. As libgit2 doesn't provide any
+  way to do submodule clones natively, it is not susceptible to
+  this vulnerability. Users of libgit2 that have implemented
+  recursive submodule clones manually are encouraged to review
+  their implementation for this vulnerability.
+
+### Breaking API changes
+
+* The "private" implementation details of the `git_cred` structure have been
+  moved to a dedicated `git2/sys/cred.h` header, to clarify that the underlying
+  structures are only provided for custom transport implementers.
+  The breaking change is that the `username` member of the underlying struct
+  is now hidden, and a new `git_cred_get_username` function has been provided.
+
+### Breaking CMake configuration changes
+
+* The CMake option to use a system http-parser library, instead of the
+  bundled dependency, has changed.  This is due to a deficiency in
+  http-parser that we have fixed in our implementation.  The bundled
+  library is now the default, but if you wish to force the use of the
+  system http-parser implementation despite incompatibilities, you can
+  specify `-DUSE_HTTP_PARSER=system` to CMake.
+
+* The interactions between `USE_HTTPS` and `SHA1_BACKEND` have been
+  streamlined. The detection was moved to a new `USE_SHA1`, modeled after
+  `USE_HTTPS`, which takes the values "CollisionDetection/Backend/Generic", to
+  better match how the "hashing backend" is selected, the default (ON) being
+  "CollisionDetection". If you were using `SHA1_BACKEND` previously, you'll
+  need to check the value you've used, or switch to the autodetection.
+
+### Changes or improvements
+
+* libgit2 can now correctly cope with URLs where the host contains a colon
+  but a port is not specified.  (eg `http://example.com:/repo.git`).
 
 * A carefully constructed commit object with a very large number
   of parents may lead to potential out-of-bounds writes or
@@ -12,40 +96,6 @@ This is a security release fixing the following issues:
   location is not necessarily writable only by administrators, so we
   now ensure that the configuration file is owned by the administrator
   or the current user.
-
-v0.28.2
--------
-
-This is a bugfix release with the following changes:
-
-* Fix include directory ordering when using bundled dependencies.
-
-* Fix infinite loop when searching for a non-existing repository with
-  Windows-style paths including drive prefixes.
-
-* Fix paths with a trailing "/" not always being treated as
-  directories when computing ignores.
-
-* Fix false negatives when computing ignores where ignore rules
-  that are a prefix to a negative ignore rule exist.
-
-* Fix patches with CRLF line endings not being parsed correctly.
-
-* Fix segfault when parsing patches with file addition (deletion)
-  where the added (deleted) file name contains a space.
-
-* Fix assertion failure when trying to write to a non-existent
-  locked configuration file.
-
-v0.28.1
--------
-
-This is a bugfix release with the following change:
-
-* The deprecated functions (`git_buf_free` and the `giterr_` family of
-  functions) are now exported properly.  In the v0.28 release, they were
-  not given the correct external attributes and they did not have the
-  correct linkage visibility in the v0.28 library.
 
 v0.28
 -----
