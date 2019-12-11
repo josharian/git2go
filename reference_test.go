@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"sort"
 	"testing"
+	"testing/quick"
 	"time"
 )
 
@@ -243,4 +244,62 @@ func checkRefType(t *testing.T, ref *Reference, kind ReferenceType) {
 		t.Fatalf("Unable to get caller")
 	}
 	t.Fatalf("Wrong ref type at %v:%v; have %v, expected %v", file, line, ref.Type(), kind)
+}
+
+func TestSplitNamespace(t *testing.T) {
+	tests := []struct{ Name, Namespace, Rest string }{
+		// Normal cases.
+		{"b", "", "b"},
+		{"b/c/d", "", "b/c/d"},
+		{"refs/namespaces/ns/b", "ns", "b"},
+		{"refs/namespaces/ns/b/c/d", "ns", "b/c/d"},
+		{"refs/namespaces/ns/refs/head", "ns", "refs/head"},
+		{"refs/namespaces/ns/refs/namespaces/nested/b", "ns/nested", "b"},
+		{"refs/namespaces/ns/refs/namespaces/nested/refs/namespaces/three/b", "ns/nested/three", "b"},
+		// Invalid/corner cases.
+		{"refs/namespaces/ns/", "ns", ""},
+		{"refs/namespaces/ns", "", "refs/namespaces/ns"},
+	}
+	for _, test := range tests {
+		ns, rest := SplitNamespace(test.Name)
+		if ns != test.Namespace || rest != test.Rest {
+			t.Errorf("SplitNamespace(%q)=(%q, %q), want (%q, %q)", test.Name, ns, rest, test.Namespace, test.Rest)
+		}
+	}
+}
+
+func TestNamespacePrefix(t *testing.T) {
+	tests := []struct{ Namespace, Prefix string }{
+		// Normal cases.
+		{"ns", "refs/namespaces/ns/"},
+		{"1/2", "refs/namespaces/1/refs/namespaces/2/"},
+		{"", ""},
+		// TODO: test some unusual cases?
+		// Ideally we'd match how command line git handles things like "1/" and "/2".
+		// But I don't want to bother finding out now. Maybe later.
+	}
+	for _, test := range tests {
+		prefix := NamespacePrefix(test.Namespace)
+		if prefix != test.Prefix {
+			t.Errorf("NamespacePrefix(%q)=%q, want %q", test.Namespace, prefix, test.Prefix)
+		}
+	}
+}
+
+func TestNamespaceRoundTrip(t *testing.T) {
+	fromName := func(name string) bool {
+		ns, rest := SplitNamespace(name)
+		return name == NamespacePrefix(ns)+rest
+	}
+	fromNS := func(ns, suffix string) bool {
+		prefix := NamespacePrefix(ns)
+		parsed, rest := SplitNamespace(prefix + suffix)
+		return parsed == ns && rest == suffix
+	}
+	if err := quick.Check(fromName, nil); err != nil {
+		t.Error(err)
+	}
+	if err := quick.Check(fromNS, nil); err != nil {
+		t.Error(err)
+	}
 }

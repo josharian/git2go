@@ -6,6 +6,7 @@ package git
 import "C"
 import (
 	"runtime"
+	"strings"
 	"unsafe"
 )
 
@@ -361,6 +362,41 @@ func (v *Reference) IsNote() bool {
 func (v *Reference) Free() {
 	runtime.SetFinalizer(v, nil)
 	C.git_reference_free(v.ptr)
+}
+
+const namespacePrefix = "refs/namespaces/"
+
+// SplitNamespace returns the git namespace of the named reference
+// and the non-namespace part of the reference name.
+// For example, SplitNamespace("refs/namespaces/foo/bar") returns "foo", "bar".
+// SplitNamespace("refs/namespaces/foo/refs/namespaces/bar/qux") returns "foo/bar", "qux".
+func SplitNamespace(name string) (namespace, rest string) {
+	var ns []string
+	// Look for things of the form "refs/namespaces/foo/",
+	// and record foo in ns.
+	for strings.HasPrefix(name, namespacePrefix) {
+		after := name[len(namespacePrefix):]
+		i := strings.IndexByte(after, '/')
+		if i == -1 {
+			break
+		}
+		name = after
+		ns = append(ns, name[:i])
+		name = name[i+1:]
+	}
+	return strings.Join(ns, "/"), name
+}
+
+// NamespacePrefix returns the expanded reference prefix for a namespace.
+// For example, NamespacePrefix("a/b") returns "refs/namespaces/a/refs/namespaces/b/".
+// NamespacePrefix("") returns "".
+// NamespacePrefix does not do any validation of the namespace.
+func NamespacePrefix(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	parts := strings.Split(namespace, "/")
+	return namespacePrefix + strings.Join(parts, "/"+namespacePrefix) + "/"
 }
 
 type ReferenceIterator struct {
