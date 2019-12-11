@@ -482,7 +482,7 @@ func (v *ReferenceNameIterator) Next() (string, error) {
 
 // Slice returns a slice of all reference names.
 // It is a convenience function similar to calling Next repeatedly.
-// If Slice encounters an error, it returns all reference names up to that error.
+// If Slice encounters an error, it returns all reference names encountered up to that error.
 func (v *ReferenceNameIterator) Slice() ([]string, error) {
 	// TODO: implement directly in terms of git_reference_next_name?
 	var all []string
@@ -495,6 +495,25 @@ func (v *ReferenceNameIterator) Slice() ([]string, error) {
 			return all, err
 		}
 		all = append(all, s)
+	}
+}
+
+// ByNamespace is a convenience function returning all references organized by namespace.
+// The returned name has had its namespace prefix removed. Use NamespacePrefix to re-add it.
+// If ByNamespace encounters an error, it returns all references encountered up to that error.
+func (v *ReferenceNameIterator) ByNamespace() (map[string][]string, error) {
+	// TODO: implement directly in terms of git_reference_next_name?
+	all := make(map[string][]string)
+	for {
+		s, err := v.Next()
+		if IsErrorCode(err, ErrIterOver) {
+			return all, nil
+		}
+		if err != nil {
+			return all, err
+		}
+		ns, rest := SplitNamespace(s)
+		all[ns] = append(all[ns], rest)
 	}
 }
 
@@ -512,6 +531,43 @@ func (v *ReferenceIterator) Next() (*Reference, error) {
 	}
 
 	return newReferenceFromC(ptr, v.repo), nil
+}
+
+// Slice returns a slice of all references.
+// It is a convenience function similar to calling Next repeatedly.
+// If Slice encounters an error, it returns all references encountered up to that error.
+func (v *ReferenceIterator) Slice() ([]*Reference, error) {
+	// TODO: implement directly in terms of git_reference_next?
+	var all []*Reference
+	for {
+		ref, err := v.Next()
+		if IsErrorCode(err, ErrIterOver) {
+			return all, nil
+		}
+		if err != nil {
+			return all, err
+		}
+		all = append(all, ref)
+	}
+}
+
+// ByNamespace is a convenience function returning all references organized by namespace.
+// The references still have their original name; use SplitNamespace to remove it.
+// If ByNamespace encounters an error, it returns all references encountered up to that error.
+func (v *ReferenceIterator) ByNamespace() (map[string][]*Reference, error) {
+	// TODO: implement directly in terms of git_reference_next?
+	all := make(map[string][]*Reference)
+	for {
+		ref, err := v.Next()
+		if IsErrorCode(err, ErrIterOver) {
+			return all, nil
+		}
+		if err != nil {
+			return all, err
+		}
+		ns, _ := SplitNamespace(ref.Name())
+		all[ns] = append(all[ns], ref)
+	}
 }
 
 func newReferenceIteratorFromC(ptr *C.git_reference_iterator, r *Repository) *ReferenceIterator {
