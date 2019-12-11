@@ -2,6 +2,9 @@ package git
 
 /*
 #include <git2.h>
+// TODO: restore these? See comments at (*Cred).Type.
+// #include <git2/sys/cred.h>
+// git_credtype_t _go_git_cred_credtype(git_cred *cred);
 */
 import "C"
 import "unsafe"
@@ -37,8 +40,14 @@ func (o *Cred) HasUsername() bool {
 //   The breaking change is that the `username` member of the underlying struct
 //   is now hidden, and a new `git_cred_get_username` function has been provided.
 //
+// Purportedly, this is fixed by these two commits:
+//   https://github.com/libgit2/git2go/commit/97e6392d3ab67bbf3e3e59b86a0bc9ebf7430e98
+//   https://github.com/libgit2/git2go/commit/c5159e624e55cb14c56a3e5f36200be409fba9d6
+// which I have integrated here and in the cgo preamble at the top of this file,
+// but it still doesn't work for me. No idea why.
+//
 // func (o *Cred) Type() CredType {
-// 	return (CredType)(o.ptr.credtype)
+// 	return (CredType)(C._go_git_cred_credtype(o.ptr))
 // }
 
 func credFromC(ptr *C.git_cred) *Cred {
