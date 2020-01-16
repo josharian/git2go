@@ -15,6 +15,8 @@ import (
 	"unsafe"
 )
 
+//go:generate stringer -trimprefix ErrClass -type ErrorClass
+
 type ErrorClass int
 
 const (
@@ -47,6 +49,8 @@ const (
 	ErrClassCallback   ErrorClass = C.GITERR_CALLBACK
 	ErrClassRebase     ErrorClass = C.GITERR_REBASE
 )
+
+//go:generate stringer -trimprefix Err -type ErrorCode
 
 type ErrorCode int
 
