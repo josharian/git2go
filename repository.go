@@ -479,6 +479,8 @@ func (v *Repository) TreeBuilderFromTree(tree *Tree) (*TreeBuilder, error) {
 	return bld, nil
 }
 
+//go:generate stringer -trimprefix RepositoryState -type RepositoryState .
+
 type RepositoryState int
 
 const (
