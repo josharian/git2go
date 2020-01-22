@@ -218,7 +218,7 @@ func freeStashApplyOptions(optsC *C.git_stash_apply_options) {
 // conflict with changes in the stash, the user returned error from the
 // StashApplyProgressCallback, if any, or other error code.
 //
-// Error codes can be interogated with IsErrorCode(err, ErrNotFound).
+// Error codes can be interrogated with IsErrorCode(err, ErrNotFound).
 func (c *StashCollection) Apply(index int, opts StashApplyOptions) error {
 	optsC, progressData := opts.toC()
 	defer untrackStashApplyOptionsCallback(optsC)
