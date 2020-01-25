@@ -225,6 +225,17 @@ func (oid *Oid) Equal(oid2 *Oid) bool {
 	return bytes.Equal(oid[:], oid2[:])
 }
 
+// Eq is Equal, but it treats nil oids as equal to the zero oid.
+func (oid *Oid) Eq(oid2 *Oid) bool {
+	if oid == nil {
+		return oid2 == nil || oid2.IsZero()
+	}
+	if oid2 == nil {
+		return oid.IsZero()
+	}
+	return bytes.Equal(oid[:], oid2[:])
+}
+
 func (oid *Oid) IsZero() bool {
 	for _, a := range oid {
 		if a != 0 {
