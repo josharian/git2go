@@ -79,6 +79,9 @@ func (c *Commit) Tree() (*Tree, error) {
 }
 
 func (c *Commit) TreeId() *Oid {
+	if c == nil {
+		return nil
+	}
 	ret := newOidFromC(C.git_commit_tree_id(c.cast_ptr))
 	runtime.KeepAlive(c)
 	return ret
