@@ -51,6 +51,9 @@ func (t ObjectType) String() string {
 }
 
 func (o *Object) Id() *Oid {
+	if o == nil {
+		return nil
+	}
 	ret := newOidFromC(C.git_object_id(o.ptr))
 	runtime.KeepAlive(o)
 	return ret
