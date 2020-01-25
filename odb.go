@@ -234,6 +234,9 @@ func (v *OdbObject) Free() {
 }
 
 func (object *OdbObject) Id() (oid *Oid) {
+	if object == nil {
+		return nil
+	}
 	ret := newOidFromC(C.git_odb_object_id(object.ptr))
 	runtime.KeepAlive(object)
 	return ret
