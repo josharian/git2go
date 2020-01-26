@@ -121,6 +121,12 @@ func (t Tree) EntryCount() uint64 {
 
 type TreeWalkCallback func(string, *TreeEntry) int
 
+const (
+	TreeWalkStop = -1
+	TreeWalkContinue = 0
+	TreeWalkSkip = 1
+)
+
 //export CallbackGitTreeWalk
 func CallbackGitTreeWalk(_root *C.char, _entry unsafe.Pointer, ptr unsafe.Pointer) C.int {
 	root := C.GoString(_root)
@@ -133,6 +139,18 @@ func CallbackGitTreeWalk(_root *C.char, _entry unsafe.Pointer, ptr unsafe.Pointe
 	}
 }
 
+// Walk traverses the entries in a tree and its subtrees in pre-order.
+//
+// The entries will be traversed in pre-order, child subtrees
+// will be automatically loaded as required, and the callback will be
+// called once per entry with the current (relative) root for the entry and
+// the entry data itself.
+//
+// If the callback returns a positive value, the passed entry will be
+// skipped on the traversal. A negative value stops the walk.
+//
+// You may use the constants TreeWalkStop, TreeWalkContinue, and TreeWalkSkip
+// for clarity.
 func (t Tree) Walk(callback TreeWalkCallback) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
