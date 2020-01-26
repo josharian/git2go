@@ -18,6 +18,13 @@ type Commit struct {
 	cast_ptr *C.git_commit
 }
 
+func (c *Commit) Id() *Oid {
+	if c == nil {
+		return nil
+	}
+	return c.Object.Id()
+}
+
 func (c *Commit) AsObject() *Object {
 	return &c.Object
 }
