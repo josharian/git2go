@@ -12,6 +12,8 @@ import (
 
 type ReferenceType int
 
+//go:generate stringer -trimprefix Reference -type ReferenceType
+
 const (
 	ReferenceSymbolic ReferenceType = C.GIT_REF_SYMBOLIC
 	ReferenceOid      ReferenceType = C.GIT_REF_OID
