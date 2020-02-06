@@ -32,6 +32,16 @@ int _go_git_opts_get_uint(int opt, unsigned int *val)
 {
     return git_libgit2_opts(opt, val);
 }
+
+int _go_git_opts_set_int(int opt, int val)
+{
+    return git_libgit2_opts(opt, val);
+}
+
+int _go_git_opts_get_int(int opt, int *val)
+{
+    return git_libgit2_opts(opt, val);
+}
 */
 import "C"
 import (
@@ -93,6 +103,22 @@ func SetMwindowOpenLimit(size uint) error {
 	return setUint(C.GIT_OPT_SET_MWINDOW_OPEN_LIMIT, size)
 }
 
+func EnableHTTPExpectContinue() (bool, error) {
+	i, err := getInt(C.GIT_OPT_ENABLE_HTTP_EXPECT_CONTINUE)
+	if err != nil {
+		return false, err
+	}
+	return i != 0, nil
+}
+
+func SetEnableHTTPExpectContinue(enable bool) error {
+	i := 0
+	if enable {
+		i = 1
+	}
+	return setInt(C.GIT_OPT_ENABLE_HTTP_EXPECT_CONTINUE, i)
+}
+
 func getSizet(opt C.int) (int, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -137,6 +163,30 @@ func setUint(opt C.int, val uint) error {
 
 	cval := C.uint(val)
 	err := C._go_git_opts_set_uint(opt, cval)
+	if err < 0 {
+		return MakeGitError(err)
+	}
+	return nil
+}
+
+func getInt(opt C.int) (int, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var val C.int
+	err := C._go_git_opts_get_int(opt, &val)
+	if err < 0 {
+		return 0, MakeGitError(err)
+	}
+	return int(val), nil
+}
+
+func setInt(opt C.int, val int) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	cval := C.int(val)
+	err := C._go_git_opts_set_int(opt, cval)
 	if err < 0 {
 		return MakeGitError(err)
 	}
