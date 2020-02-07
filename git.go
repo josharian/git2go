@@ -20,34 +20,34 @@ import (
 type ErrorClass int
 
 const (
-	ErrClassNone       ErrorClass = C.GITERR_NONE
-	ErrClassNoMemory   ErrorClass = C.GITERR_NOMEMORY
-	ErrClassOs         ErrorClass = C.GITERR_OS
-	ErrClassInvalid    ErrorClass = C.GITERR_INVALID
-	ErrClassReference  ErrorClass = C.GITERR_REFERENCE
-	ErrClassZlib       ErrorClass = C.GITERR_ZLIB
-	ErrClassRepository ErrorClass = C.GITERR_REPOSITORY
-	ErrClassConfig     ErrorClass = C.GITERR_CONFIG
-	ErrClassRegex      ErrorClass = C.GITERR_REGEX
-	ErrClassOdb        ErrorClass = C.GITERR_ODB
-	ErrClassIndex      ErrorClass = C.GITERR_INDEX
-	ErrClassObject     ErrorClass = C.GITERR_OBJECT
-	ErrClassNet        ErrorClass = C.GITERR_NET
-	ErrClassTag        ErrorClass = C.GITERR_TAG
-	ErrClassTree       ErrorClass = C.GITERR_TREE
-	ErrClassIndexer    ErrorClass = C.GITERR_INDEXER
-	ErrClassSSL        ErrorClass = C.GITERR_SSL
-	ErrClassSubmodule  ErrorClass = C.GITERR_SUBMODULE
-	ErrClassThread     ErrorClass = C.GITERR_THREAD
-	ErrClassStash      ErrorClass = C.GITERR_STASH
-	ErrClassCheckout   ErrorClass = C.GITERR_CHECKOUT
-	ErrClassFetchHead  ErrorClass = C.GITERR_FETCHHEAD
-	ErrClassMerge      ErrorClass = C.GITERR_MERGE
-	ErrClassSsh        ErrorClass = C.GITERR_SSH
-	ErrClassFilter     ErrorClass = C.GITERR_FILTER
-	ErrClassRevert     ErrorClass = C.GITERR_REVERT
-	ErrClassCallback   ErrorClass = C.GITERR_CALLBACK
-	ErrClassRebase     ErrorClass = C.GITERR_REBASE
+	ErrClassNone       ErrorClass = C.GIT_ERROR_NONE
+	ErrClassNoMemory   ErrorClass = C.GIT_ERROR_NOMEMORY
+	ErrClassOs         ErrorClass = C.GIT_ERROR_OS
+	ErrClassInvalid    ErrorClass = C.GIT_ERROR_INVALID
+	ErrClassReference  ErrorClass = C.GIT_ERROR_REFERENCE
+	ErrClassZlib       ErrorClass = C.GIT_ERROR_ZLIB
+	ErrClassRepository ErrorClass = C.GIT_ERROR_REPOSITORY
+	ErrClassConfig     ErrorClass = C.GIT_ERROR_CONFIG
+	ErrClassRegex      ErrorClass = C.GIT_ERROR_REGEX
+	ErrClassOdb        ErrorClass = C.GIT_ERROR_ODB
+	ErrClassIndex      ErrorClass = C.GIT_ERROR_INDEX
+	ErrClassObject     ErrorClass = C.GIT_ERROR_OBJECT
+	ErrClassNet        ErrorClass = C.GIT_ERROR_NET
+	ErrClassTag        ErrorClass = C.GIT_ERROR_TAG
+	ErrClassTree       ErrorClass = C.GIT_ERROR_TREE
+	ErrClassIndexer    ErrorClass = C.GIT_ERROR_INDEXER
+	ErrClassSSL        ErrorClass = C.GIT_ERROR_SSL
+	ErrClassSubmodule  ErrorClass = C.GIT_ERROR_SUBMODULE
+	ErrClassThread     ErrorClass = C.GIT_ERROR_THREAD
+	ErrClassStash      ErrorClass = C.GIT_ERROR_STASH
+	ErrClassCheckout   ErrorClass = C.GIT_ERROR_CHECKOUT
+	ErrClassFetchHead  ErrorClass = C.GIT_ERROR_FETCHHEAD
+	ErrClassMerge      ErrorClass = C.GIT_ERROR_MERGE
+	ErrClassSsh        ErrorClass = C.GIT_ERROR_SSH
+	ErrClassFilter     ErrorClass = C.GIT_ERROR_FILTER
+	ErrClassRevert     ErrorClass = C.GIT_ERROR_REVERT
+	ErrClassCallback   ErrorClass = C.GIT_ERROR_CALLBACK
+	ErrClassRebase     ErrorClass = C.GIT_ERROR_REBASE
 )
 
 //go:generate stringer -trimprefix Err -type ErrorCode
