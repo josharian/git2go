@@ -36,23 +36,30 @@ func _() {
 	_ = x[ErrClassRevert-25]
 	_ = x[ErrClassCallback-26]
 	_ = x[ErrClassRebase-29]
+	_ = x[ErrClassFilesystem-30]
+	_ = x[ErrClassPatch-31]
+	_ = x[ErrClassWorktree-32]
+	_ = x[ErrClassSHA1-33]
+	_ = x[ErrClassHTTP-34]
 }
 
 const (
 	_ErrorClass_name_0 = "NoneNoMemoryOsInvalidReferenceZlibRepositoryConfigRegexOdbIndexObjectNetTagTreeIndexerSSLSubmoduleThreadStashCheckoutFetchHeadMergeSshFilterRevertCallback"
-	_ErrorClass_name_1 = "Rebase"
+	_ErrorClass_name_1 = "RebaseFilesystemPatchWorktreeSHA1HTTP"
 )
 
 var (
 	_ErrorClass_index_0 = [...]uint8{0, 4, 12, 14, 21, 30, 34, 44, 50, 55, 58, 63, 69, 72, 75, 79, 86, 89, 98, 104, 109, 117, 126, 131, 134, 140, 146, 154}
+	_ErrorClass_index_1 = [...]uint8{0, 6, 16, 21, 29, 33, 37}
 )
 
 func (i ErrorClass) String() string {
 	switch {
 	case 0 <= i && i <= 26:
 		return _ErrorClass_name_0[_ErrorClass_index_0[i]:_ErrorClass_index_0[i+1]]
-	case i == 29:
-		return _ErrorClass_name_1
+	case 29 <= i && i <= 34:
+		i -= 29
+		return _ErrorClass_name_1[_ErrorClass_index_1[i]:_ErrorClass_index_1[i+1]]
 	default:
 		return "ErrorClass(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

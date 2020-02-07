@@ -48,6 +48,11 @@ const (
 	ErrClassRevert     ErrorClass = C.GIT_ERROR_REVERT
 	ErrClassCallback   ErrorClass = C.GIT_ERROR_CALLBACK
 	ErrClassRebase     ErrorClass = C.GIT_ERROR_REBASE
+	ErrClassFilesystem ErrorClass = C.GIT_ERROR_FILESYSTEM
+	ErrClassPatch      ErrorClass = C.GIT_ERROR_PATCH
+	ErrClassWorktree   ErrorClass = C.GIT_ERROR_WORKTREE
+	ErrClassSHA1       ErrorClass = C.GIT_ERROR_SHA1
+	ErrClassHTTP       ErrorClass = C.GIT_ERROR_HTTP
 )
 
 //go:generate stringer -trimprefix Err -type ErrorCode
