@@ -95,12 +95,12 @@ func SetMwindowMappedLimit(size int) error {
 	return setSizet(C.GIT_OPT_SET_MWINDOW_MAPPED_LIMIT, size)
 }
 
-func MwindowOpenLimit() (uint, error) {
-	return getUint(C.GIT_OPT_GET_MWINDOW_OPEN_LIMIT)
+func MwindowOpenLimit() (int, error) {
+	return getSizet(C.GIT_OPT_GET_MWINDOW_FILE_LIMIT)
 }
 
-func SetMwindowOpenLimit(size uint) error {
-	return setUint(C.GIT_OPT_SET_MWINDOW_OPEN_LIMIT, size)
+func SetMwindowOpenLimit(size int) error {
+	return setSizet(C.GIT_OPT_SET_MWINDOW_FILE_LIMIT, size)
 }
 
 func EnableHTTPExpectContinue() (bool, error) {
