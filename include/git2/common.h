@@ -206,8 +206,8 @@ typedef enum {
 	GIT_OPT_SET_PACK_MAX_OBJECTS,
 	GIT_OPT_DISABLE_PACK_KEEP_FILE_CHECKS,
 	GIT_OPT_ENABLE_HTTP_EXPECT_CONTINUE,
-	GIT_OPT_GET_MWINDOW_OPEN_LIMIT,
-	GIT_OPT_SET_MWINDOW_OPEN_LIMIT
+	GIT_OPT_GET_MWINDOW_FILE_LIMIT,
+	GIT_OPT_SET_MWINDOW_FILE_LIMIT
 } git_libgit2_opt_t;
 
 /**
@@ -230,7 +230,17 @@ typedef enum {
  *	* opts(GIT_OPT_SET_MWINDOW_MAPPED_LIMIT, size_t):
  *
  *		> Set the maximum amount of memory that can be mapped at any time
- *		by the library
+ *		> by the library
+ *
+ *	* opts(GIT_OPT_GET_MWINDOW_FILE_LIMIT, size_t *):
+ *
+ *		> Get the maximum number of files that will be mapped at any time by the
+ *		> library
+ *
+ *	* opts(GIT_OPT_SET_MWINDOW_FILE_LIMIT, size_t):
+ *
+ *		> Set the maximum number of files that can be mapped at any time
+ *		> by the library
  *
  *	* opts(GIT_OPT_GET_SEARCH_PATH, int level, git_buf *buf)
  *
@@ -405,16 +415,6 @@ typedef enum {
  *		> When connecting to a server using NTLM or Negotiate
  *		> authentication, use expect/continue when POSTing data.
  *		> This option is not available on Windows.
- *
- *	* opts(GIT_OPT_GET_MWINDOW_OPEN_LIMIT, unsigned int *):
- *
- *		> Get the maximum number of files that will be mapped at any time by the library
- *
- *	* opts(GIT_OPT_SET_MWINDOW_MAPPED_LIMIT, unsigned int):
- *
- *		> Set the maximum number of files that can be mapped at any time
- *		by the library
- *
  *
  * @param option Option key
  * @param ... value to set the option

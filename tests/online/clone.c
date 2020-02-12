@@ -394,20 +394,16 @@ void test_online_clone__credentials(void)
 
 void test_online_clone__credentials_via_custom_headers(void)
 {
-	git_buf auth = GIT_BUF_INIT, creds = GIT_BUF_INIT;
+	const char *creds = "libgit3:libgit3";
+	git_buf auth = GIT_BUF_INIT;
 
-	if (!_remote_url || !_remote_user || !_remote_pass)
-		clar__skip();
-
-	cl_git_pass(git_buf_printf(&creds, "%s:%s", _remote_user, _remote_pass));
 	cl_git_pass(git_buf_puts(&auth, "Authorization: Basic "));
-	cl_git_pass(git_buf_encode_base64(&auth, creds.ptr, creds.size));
+	cl_git_pass(git_buf_encode_base64(&auth, creds, strlen(creds)));
 	g_options.fetch_opts.custom_headers.count = 1;
 	g_options.fetch_opts.custom_headers.strings = &auth.ptr;
 
-	cl_git_pass(git_clone(&g_repo, _remote_url, "./foo", &g_options));
+	cl_git_pass(git_clone(&g_repo, "https://bitbucket.org/libgit2/testgitrepository.git", "./foo", &g_options));
 
-	git_buf_dispose(&creds);
 	git_buf_dispose(&auth);
 }
 
