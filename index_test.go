@@ -229,6 +229,7 @@ func TestIndexOpen(t *testing.T) {
 }
 
 func checkFatal(t *testing.T, err error) {
+	t.Helper()
 	if err == nil {
 		return
 	}
