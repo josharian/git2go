@@ -427,6 +427,12 @@ func (repo *Repository) IsBare() bool {
 	return ret
 }
 
+func (repo *Repository) CommonDir() string {
+	s := C.GoString(C.git_repository_commondir(repo.ptr))
+	runtime.KeepAlive(repo)
+	return s
+}
+
 func (repo *Repository) Workdir() string {
 	s := C.GoString(C.git_repository_workdir(repo.ptr))
 	runtime.KeepAlive(repo)
