@@ -427,6 +427,12 @@ func (repo *Repository) IsBare() bool {
 	return ret
 }
 
+func (repo *Repository) IsWorktree() bool {
+	ret := C.git_repository_is_worktree(repo.ptr) != 0
+	runtime.KeepAlive(repo)
+	return ret
+}
+
 func (repo *Repository) CommonDir() string {
 	s := C.GoString(C.git_repository_commondir(repo.ptr))
 	runtime.KeepAlive(repo)
